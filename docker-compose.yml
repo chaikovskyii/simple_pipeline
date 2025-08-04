@@ -1,0 +1,139 @@
+x-airflow-common: &airflow-common
+  build: ./airflow
+  env_file:
+    - .env
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@${AIRFLOW_DB_HOST}/${AIRFLOW_DB_NAME}
+    AIRFLOW__CORE__FERNET_KEY: 'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg='
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
+    AIRFLOW__CORE__ENABLE_XCOM_PICKLING: 'true'
+    AIRFLOW_CONN_POSTGRES_1: 'postgresql://${POSTGRES_1_USER}:${POSTGRES_1_PASSWORD}@${POSTGRES_1_HOST}:${POSTGRES_1_PORT}/${POSTGRES_1_DB}'
+    AIRFLOW_CONN_POSTGRES_2: 'postgresql://${POSTGRES_2_USER}:${POSTGRES_2_PASSWORD}@${POSTGRES_2_HOST}:${POSTGRES_2_PORT}/${POSTGRES_2_DB}'
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - airflow_logs:/opt/airflow/logs
+  depends_on:
+    - airflow-db
+    - postgres-1
+    - postgres-2
+  networks:
+    - data_pipeline
+
+services:
+  # PostgreSQL Database 1 - Source database
+  postgres-1:
+    build:
+      context: ./sql
+      dockerfile: Dockerfile.postgres1
+    container_name: postgres-1
+    environment:
+      POSTGRES_DB: ${POSTGRES_1_DB}
+      POSTGRES_USER: ${POSTGRES_1_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_1_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres1_data:/var/lib/postgresql/data
+    networks:
+      - data_pipeline
+
+  # PostgreSQL Database 2 - Target database for EUR converted data
+  postgres-2:
+    build:
+      context: ./sql
+      dockerfile: Dockerfile.postgres2
+    container_name: postgres-2
+    environment:
+      POSTGRES_DB: ${POSTGRES_2_DB}
+      POSTGRES_USER: ${POSTGRES_2_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_2_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres2_data:/var/lib/postgresql/data
+    networks:
+      - data_pipeline
+
+  # Airflow Database
+  airflow-db:
+    image: postgres:15
+    container_name: airflow-db
+    environment:
+      POSTGRES_DB: ${AIRFLOW_DB_NAME}
+      POSTGRES_USER: ${AIRFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+    networks:
+      - data_pipeline
+
+  # Airflow Webserver
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
+    ports:
+      - "8080:8080"
+      - "8000:8000"
+    command: >
+      bash -c "
+        airflow db init &&
+        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin123 &&
+        airflow webserver --port 8080
+      "
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Airflow Scheduler
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    depends_on:
+      - airflow-webserver
+    command: airflow scheduler
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "airflow scheduler"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+  # Grafana for visualization with dashboard provisioning
+  grafana:
+    image: grafana/grafana:9.3.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    restart: unless-stopped
+    networks:
+      - data_pipeline
+
+
+
+
+
+volumes:
+  postgres1_data:
+  postgres2_data:
+  airflow_db_data:
+  airflow_logs:
+  grafana_data:
+
+networks:
+  data_pipeline:
+    driver: bridge

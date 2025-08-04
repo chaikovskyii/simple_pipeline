@@ -1,0 +1,340 @@
+{
+    "id": null,
+    "title": "Orders Data Pipeline Dashboard",
+    "tags": ["data-pipeline", "orders", "etl"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Orders in Selected Time Range",
+        "type": "stat",
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P72C3179523E80511"
+            },
+            "format": "table",
+            "rawSql": "SELECT COUNT(*) as \"Orders in Time Range\" FROM orders WHERE order_date >= $__timeFrom() AND order_date <= $__timeTo()",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Orders by Currency (Time Range)",
+        "type": "barchart",
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P72C3179523E80511"
+            },
+            "format": "table",
+            "rawSql": "SELECT currency, COUNT(*) as count FROM orders WHERE order_date >= $__timeFrom() AND order_date <= $__timeTo() GROUP BY currency ORDER BY count DESC",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "options": {
+          "orientation": "auto",
+          "barWidth": 0.97,
+          "groupWidth": 0.7,
+          "legend": {
+            "displayMode": "hidden"
+          },
+          "xTickLabelRotation": -45
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisPlacement": "auto",
+              "axisLabel": "Number of Orders",
+              "scaleDistribution": {
+                "type": "linear"
+              }
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Orders Over Time",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P72C3179523E80511"
+            },
+            "format": "time_series",
+            "rawSql": "SELECT order_date as time, COUNT(*) as orders FROM orders WHERE order_date >= $__timeFrom() AND order_date <= $__timeTo() GROUP BY order_date ORDER BY order_date",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "options": {
+          "legend": {
+            "displayMode": "visible",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "lineWidth": 2,
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "spanNulls": false,
+              "insertNulls": false,
+              "showPoints": "auto",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              },
+              "axisPlacement": "auto",
+              "axisLabel": "Orders",
+              "scaleDistribution": {
+                "type": "linear"
+              }
+            },
+            "unit": "short",
+            "min": 0
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Orders by Day of Week",
+        "type": "barchart",
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P72C3179523E80511"
+            },
+            "format": "table",
+            "rawSql": "SELECT TO_CHAR(order_date, 'Day') as day_name, COUNT(*) as orders FROM orders WHERE order_date >= $__timeFrom() AND order_date <= $__timeTo() GROUP BY EXTRACT(DOW FROM order_date), TO_CHAR(order_date, 'Day') ORDER BY EXTRACT(DOW FROM order_date)",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "options": {
+          "orientation": "auto",
+          "barWidth": 0.97,
+          "groupWidth": 0.7,
+          "legend": {
+            "displayMode": "hidden"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisPlacement": "auto",
+              "axisLabel": "Number of Orders",
+              "scaleDistribution": {
+                "type": "linear"
+              }
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "New vs Returning Customers",
+        "type": "piechart",
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P72C3179523E80511"
+            },
+            "format": "table",
+            "rawSql": "WITH customer_history AS (SELECT customer_email, MIN(order_date) as first_order FROM orders GROUP BY customer_email), time_range_orders AS (SELECT o.customer_email, o.order_date, ch.first_order FROM orders o JOIN customer_history ch ON o.customer_email = ch.customer_email WHERE o.order_date >= $__timeFrom() AND o.order_date <= $__timeTo()) SELECT CASE WHEN first_order >= $__timeFrom() THEN 'New Customer' ELSE 'Returning Customer' END as customer_type, COUNT(DISTINCT customer_email) as count FROM time_range_orders GROUP BY customer_type",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 8, "x": 0, "y": 16},
+        "options": {
+          "reduceOptions": {
+            "values": true,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "pieType": "donut",
+          "tooltip": {
+            "mode": "single"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "right"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Number of Currencies",
+        "type": "stat",
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P72C3179523E80511"
+            },
+            "format": "table",
+            "rawSql": "SELECT COUNT(DISTINCT currency) as currencies_count FROM orders WHERE order_date >= $__timeFrom() AND order_date <= $__timeTo()",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 8, "x": 8, "y": 16},
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100000},
+                {"color": "red", "value": 500000}
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Top Customer Domains",
+        "type": "piechart",
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P72C3179523E80511"
+            },
+            "format": "table",
+            "rawSql": "SELECT SUBSTRING(customer_email FROM '@(.*)$') as domain, COUNT(*) as count FROM orders WHERE order_date >= $__timeFrom() AND order_date <= $__timeTo() GROUP BY domain ORDER BY count DESC LIMIT 10",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 8, "x": 16, "y": 16},
+        "options": {
+          "reduceOptions": {
+            "values": true,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "pieType": "donut",
+          "tooltip": {
+            "mode": "single"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "right"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            },
+            "unit": "short"
+          }
+        }
+      }
+    ],
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "refresh": "30s",
+    "schemaVersion": 37,
+    "version": 0,
+    "links": []
+  }
+}

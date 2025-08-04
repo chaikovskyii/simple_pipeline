@@ -1,0 +1,5 @@
+FROM grafana/grafana:9.3.0
+
+# Copy provisioning configuration
+COPY grafana/provisioning /etc/grafana/provisioning/
+COPY grafana/dashboards /var/lib/grafana/dashboards/

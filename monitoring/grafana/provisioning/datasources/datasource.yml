@@ -1,0 +1,48 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL Source
+    type: postgres
+    access: proxy
+    orgId: 1
+    url: postgres-1:5432
+    database: orders_db
+    user: postgres
+    basicAuth: false
+    basicAuthUser: ""
+    withCredentials: false
+    isDefault: true
+    jsonData:
+      sslmode: "disable"
+      maxOpenConns: 0
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      postgresVersion: 1200
+      timescaledb: false
+    secureJsonData:
+      password: b7c488b5bcf485a1a0bb9fc542c70d61429946d89d7bca1edda764c46ab7a9fe
+    version: 1
+    editable: true
+    
+  - name: PostgreSQL Target
+    type: postgres
+    access: proxy
+    orgId: 1
+    url: postgres-2:5432
+    database: orders_eur_db
+    user: postgres
+    basicAuth: false
+    basicAuthUser: ""
+    withCredentials: false
+    isDefault: false
+    jsonData:
+      sslmode: "disable"
+      maxOpenConns: 0
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      postgresVersion: 1200
+      timescaledb: false
+    secureJsonData:
+      password: b7c488b5bcf485a1a0bb9fc542c70d61429946d89d7bca1edda764c46ab7a9fe
+    version: 1
+    editable: true

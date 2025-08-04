@@ -1,0 +1,7 @@
+FROM postgres:15
+
+# Copy initialization script
+COPY init_postgres1.sql /docker-entrypoint-initdb.d/
+
+# Set permissions
+RUN chmod +x /docker-entrypoint-initdb.d/*.sql
